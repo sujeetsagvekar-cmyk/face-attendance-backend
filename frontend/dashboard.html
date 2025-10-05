@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Summary Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      background-color: #007bff;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      margin: 0;
+    }
+
+    nav {
+      background-color: #0056b3;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 10px;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background-color: #ffffff;
+      color: #0056b3;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    nav button:hover {
+      background-color: #d1e4ff;
+    }
+
+    .section {
+      display: none;
+      padding: 20px;
+      animation: fadeIn 0.4s ease-in-out;
+    }
+
+    .active-section {
+      display: block;
+    }
+
+    .dashboard {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 20px auto;
+      max-width: 1100px;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      width: 280px;
+      text-align: center;
+    }
+
+    .card h2 {
+      color: #007bff;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .chart-container, .table-container, .student-report {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 700px;
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    input, select, button {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button.refresh-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button.refresh-btn:hover {
+      background-color: #0056b3;
+    }
+
+    .bottom-image {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .bottom-image img {
+      width: 70%;
+      max-width: 800px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Attendance Summary Dashboard</h1>
+
+  <nav>
+    <button onclick="showSection('summary')">Summary</button>
+    <button onclick="showSection('chart')">Pie Chart & Warnings</button>
+    <button onclick="showSection('reports')">Reports</button>
+    <button onclick="showSection('manage')">Manage Students</button>
+    <button onclick="showSection('markAttendance')">Mark Attendance</button>
+  </nav>
+
+  <div class="controls" style="text-align:center; margin:10px;">
+    <label>Year:</label>
+    <input type="number" id="yearInput" value="2025" min="2000" max="2100" />
+    <label>Month:</label>
+    <select id="monthInput">
+      <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+      <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+      <option value="7">Jul</option><option value="8">Aug</option><option value="9" selected>Sep</option>
+      <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+    </select>
+    <button class="refresh-btn" onclick="loadSummary()">Refresh Dashboard</button>
+    <input type="text" id="rollInput" placeholder="Enter Roll Number (e.g R103)" />
+    <button class="refresh-btn" onclick="searchStudent()">Search Student</button>
+  </div>
+
+  <div id="summary" class="section active-section">
+    <div class="dashboard">
+      <div class="card"><h2>Total Working Days</h2><p id="totalDays">0</p></div>
+      <div class="card"><h2>Class Average Attendance %</h2><p id="avgAttendance">0%</p></div>
+      <div class="card"><h2>Students ≥ 75%</h2><p id="above75">0</p></div>
+    </div>
+    <div class="bottom-image">
+      <img src="attendanceimg.jpg" alt="Attendance Dashboard Image">
+    </div>
+  </div>
+
+  <div id="chart" class="section">
+    <div class="chart-container">
+      <canvas id="attendanceChart" width="300" height="300"></canvas>
+    </div>
+    <div class="table-container">
+      <h3>Students Below 75% (Warning)</h3>
+      <table id="warningTable">
+        <thead><tr><th>Roll</th><th>Name</th><th>%</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="reports" class="section">
+    <div class="student-report" id="studentReport">
+      <h3>Student Report</h3>
+      <p>Select a student using the search bar to view their details here.</p>
+    </div>
+
+    <div class="table-container">
+      <h3>All Students Attendance (Compact)</h3>
+      <table id="studentTable">
+        <thead><tr><th>Roll</th><th>Name</th><th>%</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="manage" class="section">
+    <div class="chart-container" style="max-width:1000px; display:flex; gap:20px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:300px;">
+        <div class="card">
+          <h3 id="manageTitle">Add Student</h3>
+          <input type="hidden" id="editStudentId" value="">
+          <div style="text-align:left;">
+            <label>Name</label><br/>
+            <input type="text" id="studentName" placeholder="Full name" style="width:100%;"/><br/>
+            <label>Roll Number</label><br/>
+            <input type="text" id="studentRoll" placeholder="e.g R103" style="width:100%;"/><br/>
+            <label>Department</label><br/>
+            <input type="text" id="studentDept" placeholder="Department" style="width:100%;"/><br/><br/>
+            <button id="addBtn" class="refresh-btn" onclick="addStudent()">Add Student</button>
+            <button id="updateBtn" class="refresh-btn" style="display:none; background:#28a745;" onclick="updateStudent()">Update Student</button>
+            <button id="cancelEditBtn" class="refresh-btn" style="display:none; background:#6c757d;" onclick="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:2; min-width:400px;">
+        <div class="table-container">
+          <h3>Manage Students</h3>
+          <table id="manageTable">
+            <thead>
+              <tr><th>Roll</th><th>Name</th><th>Dept</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="markAttendance" class="section">
+    <div class="chart-container" style="max-width:600px;">
+      <h3>Mark Attendance</h3>
+      <label>Date:</label>
+      <input type="date" id="attendanceDate"><br/>
+      <label>Roll Number:</label>
+      <input type="text" id="attendanceRoll" placeholder="e.g R103"><br/>
+      <label>Status:</label>
+      <select id="attendanceStatus">
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+      </select><br/>
+      <button class="refresh-btn" onclick="markAttendance()">Mark Attendance</button>
+    </div>
+  </div>
+
+<script>
+let chartData=null;let chartInstance=null;
+function showSection(id){document.querySelectorAll('.section').forEach(sec=>sec.classList.remove('active-section'));document.getElementById(id).classList.add('active-section');if(id==="chart"&&chartData)drawChart(chartData);if(id==="manage")fetchStudents();}
+async function loadSummary(){const year=document.getElementById("yearInput").value;const month=document.getElementById("monthInput").value;const response=await fetch(`http://127.0.0.1:5000/attendance/summary/${year}/${month}`);const data=await response.json();chartData=data;document.getElementById("totalDays").textContent=data.total_working_days;document.getElementById("avgAttendance").textContent=data.class_average_attendance+"%";document.getElementById("above75").textContent=data.students_above_75_count;const warnBody=document.querySelector("#warningTable tbody");warnBody.innerHTML="";data.students.forEach(s=>{if(s.attendance_percentage<75){warnBody.innerHTML+=`<tr><td>${s.roll_number}</td><td>${s.name}</td><td style="color:red;">${s.attendance_percentage}</td></tr>`;}});const tableBody=document.querySelector("#studentTable tbody");tableBody.innerHTML="";data.students.forEach(s=>{tableBody.innerHTML+=`<tr><td>${s.roll_number}</td><td>${s.name}</td><td>${s.attendance_percentage}</td></tr>`;});drawChart(data);}
+function drawChart(data){const ctx=document.getElementById("attendanceChart").getContext("2d");if(chartInstance)chartInstance.destroy();chartInstance=new Chart(ctx,{type:"pie",data:{labels:["≥75%","<75%"],datasets:[{data:[data.students_above_75_count,data.students.length-data.students_above_75_count],backgroundColor:["#28a745","#dc3545"]}]},options:{responsive:true,plugins:{legend:{position:"bottom"},title:{display:true,text:"Attendance Distribution"}}}});}
+async function markAttendance(){const roll=document.getElementById("attendanceRoll").value.trim();const date=document.getElementById("attendanceDate").value;const status=document.getElementById("attendanceStatus").value;if(!roll||!date){alert("Please enter roll number and date!");return;}const res=await fetch("http://127.0.0.1:5000/attendance/mark",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({roll_number:roll,date,status})});const data=await res.json();alert(data.message||data.error);loadSummary();}
+async function fetchStudents(){const res=await fetch("http://127.0.0.1:5000/students");const students=await res.json();const tbody=document.querySelector("#manageTable tbody");tbody.innerHTML="";students.forEach(s=>{tbody.innerHTML+=`<tr><td>${s.roll_number}</td><td>${s.name}</td><td>${s.department||''}</td><td><button onclick="prepareEditStudent(${s.id}, '${s.name}', '${s.roll_number}', '${s.department||''}')">Edit</button><button onclick="deleteStudent(${s.id})" style="background:#dc3545;color:white;">Delete</button></td></tr>`;});}
+async function addStudent(){const n=document.getElementById("studentName").value.trim();const r=document.getElementById("studentRoll").value.trim();const d=document.getElementById("studentDept").value.trim();if(!n||!r){alert("Please fill all fields!");return;}const res=await fetch("http://127.0.0.1:5000/students",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n,roll_number:r,department:d})});const data=await res.json();alert(data.message||data.error);fetchStudents();}
+function prepareEditStudent(id,n,r,d){document.getElementById("editStudentId").value=id;document.getElementById("studentName").value=n;document.getElementById("studentRoll").value=r;document.getElementById("studentDept").value=d;document.getElementById("manageTitle").innerText="Edit Student";document.getElementById("addBtn").style.display="none";document.getElementById("updateBtn").style.display="inline-block";document.getElementById("cancelEditBtn").style.display="inline-block";}
+async function updateStudent(){const id=document.getElementById("editStudentId").value;const n=document.getElementById("studentName").value.trim();const r=document.getElementById("studentRoll").value.trim();const d=document.getElementById("studentDept").value.trim();const res=await fetch(`http://127.0.0.1:5000/students/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n,roll_number:r,department:d})});const data=await res.json();alert(data.message||data.error);cancelEdit();fetchStudents();}
+function cancelEdit(){document.getElementById("editStudentId").value="";document.getElementById("studentName").value="";document.getElementById("studentRoll").value="";document.getElementById("studentDept").value="";document.getElementById("manageTitle").innerText="Add Student";document.getElementById("addBtn").style.display="inline-block";document.getElementById("updateBtn").style.display="none";document.getElementById("cancelEditBtn").style.display="none";}
+async function deleteStudent(id){if(!confirm("Are you sure to delete?"))return;const res=await fetch(`http://127.0.0.1:5000/students/${id}`,{method:"DELETE"});const data=await res.json();alert(data.message||data.error);fetchStudents();}
+
+/* ✅ Fixed Search Student */
+async function searchStudent(){
+  const roll=document.getElementById("rollInput").value.trim();
+  if(!roll){alert("Enter a roll number to search!");return;}
+  const res=await fetch(`http://127.0.0.1:5000/students/search/${roll}`);
+  let data=await res.json();
+  const report=document.getElementById("studentReport");
+  // handle if backend sends list or object
+  if(Array.isArray(data)&&data.length>0)data=data[0];
+  if(!data||data.error||!data.name){
+    report.innerHTML=`<h3>Student Report</h3><p style="color:red;">No record found for Roll No: ${roll}</p>`;
+    return;
+  }
+  report.innerHTML=`<h3>Student Report</h3>
+  <p><b>Name:</b> ${data.name}</p>
+  <p><b>Roll Number:</b> ${data.roll_number}</p>
+  <p><b>Department:</b> ${data.department||'N/A'}</p>`;
+  showSection('reports');
+}
+loadSummary();
+</script>
+</body>
+</html>
