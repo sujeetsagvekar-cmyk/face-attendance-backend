@@ -1,7 +1,7 @@
 Flask==2.2.5
 Flask-SQLAlchemy==3.0.5
-Flask-Cors==4.0.1
+Flask-Cors==4.0.0
 pymysql==1.1.0
-python-dotenv==1.0.1
-numpy==1.26.2
-pillow==10.0.1
+python-dotenv==1.0.0
+numpy==1.24.4
+pillow==9.5.0
