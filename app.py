@@ -31,6 +31,12 @@ class Attendance(db.Model):
     status = db.Column(db.String(10))
     student = db.relationship('Student', backref='attendance_records')
 
+# --------------------- << ADDED >> ---------------------
+# Ensure tables exist even when Gunicorn/Render imports the app
+with app.app_context():
+    db.create_all()
+# -------------------------------------------------------
+
 # ---------------- STUDENT ROUTES ----------------
 @app.route('/students', methods=['POST'])
 def add_student():
@@ -180,6 +186,7 @@ def home():
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
+    # keep this for local testing
     with app.app_context():
         db.create_all()
     port = int(os.environ.get("PORT", 5000))
